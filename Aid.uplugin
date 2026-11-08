@@ -1,0 +1,17 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0-alpha.2",
+  "FriendlyName": "Aid",
+  "Description": "Data-driven spatial design annotations for Unreal Editor with optional in-game QA visualization.",
+  "Category": "Design Tools",
+  "CreatedBy": "Mippi the Dork",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "IsExperimentalVersion": true,
+  "Installed": false,
+  "Modules": [
+    { "Name": "Aid", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "AidEditor", "Type": "Editor", "LoadingPhase": "Default" }
+  ]
+}
