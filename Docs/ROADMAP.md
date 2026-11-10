@@ -1,3 +1,13 @@
+# Current status and next work (2026-11-10)
+
+**Aid 0.2.0-alpha.2 source iteration** implements inline note/relationship editing, quick swatches and gears, project presets, radial distance-driven markers, one-endpoint connection visibility, level association, multi-document previews and click-to-bind actors. No in-engine compilation has been run in this environment. Refer to [Alpha 0.2 tests](Testing/ALPHA7_TESTS.md) before considering these features validated.
+
+**Next priorities after validation:** native Slate viewport card rendering with proper multiline layout, draggable spatial connectors with preview, true Actor selection/World Outliner binding without requiring a line trace, automated editor viewport integration tests, cross-document graph relationships, per-user persistent visibility/filter state, stable World Partition actor IDs and unloaded references, runtime card parity, and packaging exclusion for internal QA data.
+
+---
+
+> **Progress:** Alpha.3 passed its three data tests in UE 5.8.3. Alpha.4 introduces dedicated assets and the first visual note/connection authoring pass, pending compilation and manual validation. See [Alpha.4 Visual Authoring](Design/ALPHA4_VISUAL_AUTHORING.md).
+
 # Aid — Development Roadmap & Feature Status
 
 **Current iteration:** `0.1.0-alpha.1` — architecture and end-to-end path proof.  

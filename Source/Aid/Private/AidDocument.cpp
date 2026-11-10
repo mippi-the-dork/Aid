@@ -3,6 +3,15 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 
+FLinearColor FAidCardStyle::GetBorderColor() const
+{
+    // Lift the title value, preserving its hue; clamp for predictable SDR HUD colors.
+    const FLinearColor C = HeaderBackgroundColor;
+    return FLinearColor(FMath::Clamp(C.R * 1.35f + 0.08f, 0.f, 1.f),
+        FMath::Clamp(C.G * 1.35f + 0.08f, 0.f, 1.f),
+        FMath::Clamp(C.B * 1.35f + 0.08f, 0.f, 1.f), 1.f);
+}
+
 FVector FAidAnchor::Resolve(const UWorld* World) const
 {
     if (Type == EAidAnchorType::ActorTag && World && !ActorTag.IsNone())
@@ -49,6 +58,55 @@ const FAidNode* UAidDocument::FindNode(const FGuid& Id) const
         return nullptr;
     }
     return Nodes.FindByPredicate([&Id](const FAidNode& N) { return N.Id == Id; });
+}
+
+bool UAidDocument::RemoveNode(const FGuid& Id)
+{
+    const int32 Removed = Nodes.RemoveAll([&Id](const FAidNode& Node) { return Node.Id == Id; });
+    if (Removed == 0)
+    {
+        return false;
+    }
+    Connections.RemoveAll([&Id](const FAidConnection& Edge) {
+        return Edge.SourceNode == Id || Edge.TargetNode == Id;
+    });
+    return true;
+}
+
+bool UAidDocument::RemoveConnection(const FGuid& Id)
+{
+    return Connections.RemoveAll([&](const FAidConnection& Edge) { return Edge.Id == Id; }) > 0;
+}
+
+uint8 UAidDocument::GetNoteVisibility(const FAidNode& Node, const FVector& Camera, const FVector& Anchor)
+{
+    if (!Node.bVisible || Node.ViewDistance <= 0.f) return 0;
+    const double DistanceSq = FVector::DistSquared(Camera, Anchor);
+    const double FullDistance = Node.ViewDistance * 0.5;
+    if (DistanceSq > FMath::Square(static_cast<double>(Node.ViewDistance))) return 0;
+    return DistanceSq <= FullDistance * FullDistance ? 2 : 1;
+}
+
+bool UAidDocument::IsConnectionVisible(const FAidConnection& Edge, const FAidNode& Source, const FAidNode& Target,
+    const FVector& Camera, const FVector& From, const FVector& To)
+{
+    if (!Edge.bVisible) return false;
+    if (!GetNoteVisibility(Source, Camera, From) && !GetNoteVisibility(Target, Camera, To)) return false;
+    if (Edge.ViewDistance > 0.f)
+    {
+        const FVector Nearest = FMath::ClosestPointOnSegment(Camera, From, To);
+        return FVector::DistSquared(Camera, Nearest) <= FMath::Square(static_cast<double>(Edge.ViewDistance));
+    }
+    return true;
+}
+
+bool UAidDocument::IsAssociatedWithLevel(const FString& PackageName) const
+{
+    for (const TSoftObjectPtr<UWorld>& Level : AssociatedLevels)
+    {
+        if (Level.ToSoftObjectPath().GetLongPackageName() == PackageName) return true;
+    }
+    return false;
 }
 
 void UAidDocument::BuildResolvedPositions(const UWorld* World, TMap<FGuid, FVector>& OutPositions) const

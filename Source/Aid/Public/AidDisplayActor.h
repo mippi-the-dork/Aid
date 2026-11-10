@@ -59,6 +59,9 @@ private:
     UPROPERTY(Transient)
     TArray<TObjectPtr<UTextRenderComponent>> RuntimeCards;
 
+    UPROPERTY(Transient)
+    TArray<uint8> RuntimeCardStates;
+
     bool ShouldDisplay() const;
     void ClearRuntimeCards();
 };

@@ -29,7 +29,7 @@ enum class EAidCapStyle : uint8
     None,
     Arrowhead,
     Circle,
-    Bar
+    Square
 };
 
 USTRUCT(BlueprintType)
@@ -49,17 +49,14 @@ struct AID_API FAidCardStyle
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Body")
     FLinearColor BodyTextColor = FLinearColor::White;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Frame")
-    FLinearColor BorderColor = FLinearColor(0.23f, 0.63f, 0.76f, 1.f);
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Frame", meta=(ClampMin="0.0", UIMin="0.0"))
     float BorderThickness = 1.5f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Frame", meta=(ClampMin="0.0", UIMin="0.0"))
-    float CornerRadius = 6.f;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Typography", meta=(ClampMin="8", ClampMax="96"))
     int32 FontSize = 16;
+
+    /** Automatically derived from the header color. No redundant border picker. */
+    FLinearColor GetBorderColor() const;
 };
 
 /** Position is always world-space: the viewer actor is NOT an annotation origin. */
@@ -106,6 +103,9 @@ struct AID_API FAidNode
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
     TArray<FName> Tags;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
+    FLinearColor CategoryColor = FLinearColor(0.25f, 0.8f, 0.95f, 1.f);
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
     FAidAnchor Anchor;
 
@@ -114,6 +114,10 @@ struct AID_API FAidNode
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
     bool bVisible = true;
+
+    /** Beyond this camera distance the marker is hidden; at half this distance the full card appears. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance", meta=(ClampMin="100.0", UIMin="500.0", UIMax="100000.0"))
+    float ViewDistance = 5000.f;
 };
 
 USTRUCT(BlueprintType)
@@ -153,6 +157,10 @@ struct AID_API FAidConnection
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
     bool bVisible = true;
+
+    /** Optional additional distance to the closest point of the line. Zero keeps long connections visible. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance", meta=(ClampMin="0.0"))
+    float ViewDistance = 0.f;
 };
 
 /**
@@ -168,6 +176,10 @@ class AID_API UAidDocument : public UPrimaryDataAsset
 public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aid|About", meta=(MultiLine="true"))
     FText Description;
+
+    /** Optional associated maps. This is metadata, not a requirement to display the document elsewhere. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Aid|Levels")
+    TArray<TSoftObjectPtr<UWorld>> AssociatedLevels;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Aid|Nodes", meta=(TitleProperty="Title"))
     TArray<FAidNode> Nodes;
@@ -186,6 +198,20 @@ public:
     bool HasNode(const FGuid& Id) const;
 
     const FAidNode* FindNode(const FGuid& Id) const;
+
+    /** Removes a node and all of its connections; caller owns transaction/dirty state. */
+    bool RemoveNode(const FGuid& Id);
+
+    bool RemoveConnection(const FGuid& Id);
+
+    /** View-distance states are shared by the editor and the optional QA runtime display. */
+    static uint8 GetNoteVisibility(const FAidNode& Node, const FVector& Camera, const FVector& Anchor);
+
+    /** As long as at least one endpoint is visible, the whole line is eligible to draw. */
+    static bool IsConnectionVisible(const FAidConnection& Edge, const FAidNode& Source, const FAidNode& Target,
+        const FVector& Camera, const FVector& From, const FVector& To);
+
+    bool IsAssociatedWithLevel(const FString& PackageName) const;
 
     /** Resolve all node anchors once per frame. Actor tags are scanned once, not once per note/edge. */
     void BuildResolvedPositions(const UWorld* World, TMap<FGuid, FVector>& OutPositions) const;

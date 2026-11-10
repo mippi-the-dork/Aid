@@ -59,6 +59,7 @@ void AAidDisplayActor::ClearRuntimeCards()
         }
     }
     RuntimeCards.Reset();
+    RuntimeCardStates.Reset();
     if (ConnectionBatcher)
     {
         ConnectionBatcher->Flush();
@@ -89,8 +90,9 @@ void AAidDisplayActor::RefreshAidDisplay()
             : Node.Title.ToString() + TEXT("\n") + Node.Body.ToString();
         Card->SetText(FText::FromString(DisplayText));
         Card->RegisterComponent();
-        Card->SetVisibility(Node.bVisible);
+        Card->SetVisibility(false); // Per-camera view-distance state is evaluated in Tick.
         RuntimeCards.Add(Card);
+        RuntimeCardStates.Add(0);
     }
     Tick(0.f);
 }
@@ -110,11 +112,21 @@ void AAidDisplayActor::Tick(float DeltaSeconds)
     {
         const FAidNode& Node = Document->Nodes[Index];
         UTextRenderComponent* Card = RuntimeCards[Index];
-        if (!IsValid(Card) || !Node.bVisible)
-        {
-            continue;
-        }
+        if (!IsValid(Card)) continue;
         const FVector Position = Locations.FindRef(Node.Id);
+        const FVector CameraLocation = Camera ? Camera->GetCameraLocation() : FVector::ZeroVector;
+        const uint8 Visibility = Camera ? UAidDocument::GetNoteVisibility(Node, CameraLocation, Position) : 0;
+        Card->SetVisibility(Visibility != 0);
+        if (!Visibility) continue;
+        // Runtime QA uses the same 0/1/2 distance states; detailed Slate cards remain editor-only.
+        if (RuntimeCardStates.IsValidIndex(Index) && RuntimeCardStates[Index] != Visibility)
+        {
+            const FString DisplayText = Visibility == 1 ? TEXT("(o)") :
+                (Node.Body.IsEmpty() ? Node.Title.ToString() : Node.Title.ToString() + TEXT("\n") + Node.Body.ToString());
+            Card->SetText(FText::FromString(DisplayText));
+            Card->SetTextRenderColor((Visibility == 1 ? Node.Style.HeaderBackgroundColor : Node.Style.BodyTextColor).ToFColor(true));
+            RuntimeCardStates[Index] = Visibility;
+        }
         Card->SetWorldLocation(Position);
         if (Camera && bFaceLocalPlayerCamera)
         {
@@ -131,10 +143,9 @@ void AAidDisplayActor::Tick(float DeltaSeconds)
             {
                 const FAidNode* From = Document->FindNode(Edge.SourceNode);
                 const FAidNode* To = Document->FindNode(Edge.TargetNode);
-                if (!Edge.bVisible || !From || !To || !From->bVisible || !To->bVisible)
-                {
-                    continue;
-                }
+                if (!From || !To) continue;
+                if (!Camera || !UAidDocument::IsConnectionVisible(Edge, *From, *To, Camera->GetCameraLocation(),
+                        Locations.FindRef(From->Id), Locations.FindRef(To->Id))) continue;
                 ConnectionBatcher->DrawLine(
                     Locations.FindRef(From->Id), Locations.FindRef(To->Id),
                     Edge.Color, SDPG_World, Edge.Thickness, 0.f, 0);
