@@ -1,75 +1,74 @@
 # Aid
 
-**Data-driven spatial design and communication for Unreal Engine**  
-**Version:** `0.2.0-alpha.2`  
-**Primary target:** Unreal Engine 5.8.0–5.8.3 / Win64 source; **not yet compiled in Unreal in this environment**.
+**Spatial design and communication for Unreal Engine**  
+**Version:** `0.3.0-alpha.4` · **Target:** Unreal Engine 5.8.0–5.8.3 / Win64
 
-Aid stores designer notes and their visual relationships in an **Aid Document** asset. The Editor can render any number of those documents over a level without requiring Aid Actors. An optional **Aid Display Actor** reads exactly the same document at runtime for QA and playtest communication.
+Aid stores spatial notes and visual relationships in a dedicated **Aid Document** asset. The editor displays one or more documents over a level **without spawning Aid Actors**. The optional `Aid Display Actor` consumes that same document for PIE and QA playtests.
 
-## What is in this release
+## Current release
 
-- Dedicated Content Browser **Aid > Aid Document** asset factory and asset definition.
-- One dockable **Tools > Aid Browser** with a document picker, editable document description, per-level document list, multi-document visibility toggles, and a single inline authoring view.
-- Node authoring by clicking level geometry, placing at the editor camera, or clicking an actor to attach a tagged note. Runtime follows a tagged Actor and uses its stored world fallback if it goes missing.
-- Editable note title, body, category, five quick color swatches, per-note **View / Connect / Gear / Delete**, and inline connection labels/target names, relationship types, line-color swatch, gear/delete.
-- Project-wide categories and relationships configurable in **Edit > Project Settings > Plugins > Aid**. Selecting a preset applies its default style; per-item overrides are preserved until that preset is explicitly reapplied.
-- Note styling: header/body fill and text colors, automatically brighter border based on title fill, border thickness, font size. There is no corner-radius property.
-- Viewport dots with a filled radial center and an outlined ring. A note is fully hidden beyond its view distance, dot-only between 50% and 100%, and expanded within 50%.
-- A connection stays visible while **either** endpoint is visible, even if its other endpoint is beyond its own view distance. Both hidden = hidden line. Manual line hide and optional line view distance still apply; the default line distance is unlimited (0).
-- Connection stroke styles Solid/Dashed/Dotted, start and end caps Arrow/Circle/Square/None and inset spacing from node markers.
-- Actor-free multi-document viewport previews. Documents can be associated with any number of maps using soft level references. The list defaults to current-level docs, but Show All and independent visibility toggles allow deliberately viewing a document in an unrelated level.
-- Separate optional runtime QA viewer. Its card presentation is currently lightweight TextRender; editor cards are Canvas.
-- Undoable note/connection authoring and native automation tests.
+- **Content Browser → Aid → Aid Document**: Create a dedicated asset, not a generic Data Asset wizard.
+- **Tools → Aid**: Opens the native Slate tool. Double-clicking an Aid Document also selects it here; the internal tab ID remains `AidBrowser` for workspace compatibility.
+- **Documents outliner**: Resizable upper section with category groups, search, per-document visibility eyes, current-level filtering and per-document level-association checkboxes. Documents with no category appear at the root. Group presets are configured in Project Settings.
+- **Notes editor**: Selected document below, editable description, persistent count header outside the scroll area, compact expandable notes, connection rows inside their source note.
+- **Unplaced notes**: `+ Note` creates a data-only note. It appears in the browser as **Not Placed** until anchored; no viewport marker or spurious line to world origin is drawn.
+- **Placement from the note**: Use its placement menu for Place in World, Attach to Actor, or Place at Camera. Viewport placement is a preview; click again to adjust, then choose **Accept** / **Cancel** in the viewport, or Enter / Escape. Actor tags are only added on Confirm.
+- **Presets**: Note Category and Relationship Type are read-only labels + preset dropdowns. Each offers None and only project-defined entries, plus an Edit Presets shortcut. The permanent Default preset and named presets use one base color; the note body/footer and connection footer colors are derived. Individual colors and connection line properties remain overrideable.
+- **Fast editing**: Square base-color swatches, title/body inputs, dedicated tags menu, direct cap/line-style cycling, editable connection targets, and inline View Distance and thickness controls. Font size and note border thickness are project-wide settings.
+- **Viewport selection**: Clicking an Aid note, its radial marker, or a connection label selects it and expands the source note in Aid, even in Review mode. Edit mode remains required for authoring tools.
+- **Distance states**: More than 100% of View Distance = hidden; between 50–100% = dot marker; at/below 50% = expanded card. Connection remains visible if **either** placed endpoint is visible; both hidden = line hidden.
+- **Presentation**: Text wrapping and layout-dependent card height replace fixed card geometry. Note and connection footers show preset names or custom labels. End caps and connections use a single screen-space renderer; close notes draw on top of far notes.
+- **Data ownership**: Editor annotations live entirely in the Aid Document package. Associating a document to a map modifies that *document*. Actor attachment **does modify the Actor** (a unique tag is added on confirmation).
 
-## Quick start
+## Getting started
 
-1. Install the entire `Aid` folder under `YourProject/Plugins/Aid` and compile `YourProjectEditor` for UE 5.8.
-2. Right-click in Content Browser **Aid > Aid Document** and name it (e.g. `AD_PuzzleFlow`). Double-click it to open Aid Browser, or use **Tools > Aid Browser** and the asset picker.
-3. Add a document description at the top of Aid Browser. For the current level, check **Associate selected document with this level**. This modifies the document asset, **not the level**.
-4. Click **+ Place Note** and click level geometry, or **+ Note at Camera**. No Actor is created. Click **+ Note on Actor** and then an Actor to pin to it. **Actor pinning does add a unique Aid Tag to the selected Actor and therefore dirties that Actor's level/external package.**
-5. Edit title, note text and category directly in its note row. Two title swatches, two body swatches and one category swatch provide fast color changes. Gear opens common settings.
-6. Click **Connect** on a source note, then click the target note/dot in the viewport or Browser. Edit the connection label and relationship type inline. Use gear for caps, line style, thickness, visibility and line range; trash deletes either note or connection.
-7. To show more documents, expand **Documents / Multi-document visibility** and check each document. **Current level only** filters the list; uncheck it to see all. You can open unrelated documents intentionally. Use **View** to focus a note in the viewport.
-8. Save Aid Documents through Unreal's normal asset save workflow.
+1. Close Unreal Editor and extract the entire `Aid` folder into `YourProject/Plugins/Aid`.
+2. Build your game's Editor target on UE 5.8.3 Win64. With automatic level discovery enabled (the default), Aid displays associated documents even if you do not open the Aid panel.
+3. Create an asset via **Content Browser → Aid → Aid Document**.
+4. In the Documents outliner, disable **Current Level** to show all documents; check the level-association checkbox on your document to associate it with the currently open map. You can associate a document with more than one map.
+5. Select your document in the outliner. Its description and notes appear in the lower pane. Use `+ Note` to create your first note; it starts unplaced and can be edited immediately.
+6. From the note header's placement menu, select World, Actor, or Camera. Confirm the preview at the bottom of the viewport. To move it later, repeat the same operation on the existing note.
+7. To connect notes, click the source note's Connect action, then the target note or its dot. Edit the new connection's text and relationship type in the source note's expanded row.
+8. Save the Aid Document normally. No Aid Actor is needed to author or show it in the editor. Use **Viewport Show → Developer → Aid** to hide or show annotations in an individual viewport, independently of the document eyes.
 
-## Visibility example
+**Visibility** of the current document is distinct from **selection** (which document you're editing) and **level association** (which maps it's organized under). The eye is a local editor visibility toggle. Changing the association only changes the Aid Document.
 
-With a note View Distance of **2,000 cm**:
+## QA runtime display
 
-| Camera distance | Node representation |
-|---|---|
-| > 2,000 cm | Hidden |
-| > 1,000 to 2,000 cm | Dot and ring only |
-| <= 1,000 cm | Full card + dot anchor |
+Place an `Aid Display Actor` into a test map and assign one of the same Aid Documents. It reads the document in PIE and QA builds; its runtime presentation is currently a simplified TextRender representation and not yet identical to the editor cards. Rendering can be disabled for shipping builds, but **merely hiding it does not exclude the referenced document data from cooking**. See [Runtime QA requirements](Docs/Technical/RUNTIME_QA.md).
 
-A 10,000 cm connection remains visible if its source is inside its own view distance, even when its target is not. The full line can be followed across the level. If both endpoints are beyond their individual ranges, the line hides. An explicit connection View Distance can additionally limit the line; **0** means unlimited.
+## Automated tests
 
-## Test commands
-
-Run in Unreal Editor's console after a successful build:
+After a successful Unreal Editor build, run these commands in the Unreal console:
 
 ```text
 Automation RunTests Aid.Data
 Automation RunTests Aid.Editor
 ```
 
-See [full automated and manual validation](Docs/Testing/ALPHA7_TESTS.md).
+The current source includes tests for graph validation, unplaced notes, visibility boundaries, long connections, document category metadata, asset creation and staged placement. The latest manual test matrix is at [Alpha 10 Tests](Docs/Testing/ALPHA10_TESTS.md).
 
-## Runtime QA
-
-Place an **Aid Display Actor**, assign the Aid Document, and play. This display actor does not author or duplicate the note data. It uses the same underlying distance and edge visibility rules but not yet the finished editor card visuals. Shipping builds disable drawing unless explicitly enabled; **this does not prevent referenced annotation data from being cooked**. Excluding confidential QA content from shipping packages remains a required release safeguard.
-
-## Known gaps
-
-- UE 5.8.3 compilation and in-engine visual validation of this iteration are pending. The original early Aid tests passed in the user's engine before this pass; new code is not yet verified in that environment.
-- Runtime TextRender markers are an approximation, not full Slate/Canvas styling parity.
-- Multi-document visible states currently live only in the editor session; per-user persistence is planned.
-- Actor anchoring uses unique Actor Tags (and dirties an Actor); non-invasive soft actor identity references require more validation, especially across World Partition and PIE.
-- Cross-document edges, drag-to-connect handles, custom spline routing, card wrapping, and high-volume performance testing remain future work.
-- Visual line caps/labels need additional near-plane and screen clipping polish.
+**Verification:** This ZIP is source and documentation. Package/static checks can be performed here, but the alpha.4 changes **have not been compiled, linked or UI-tested in UE 5.8.3 in this environment**. Please test the build and the new Slate workflows before relying on them in production.
 
 ## Documentation
 
-See [Documentation Index](Docs/README.md), [UX and three-state visibility rules](Docs/Design/ALPHA7_BROWSER_AND_VISIBILITY.md), [architecture changes](Docs/Technical/ALPHA7_DATA_VISIBILITY.md), [tests](Docs/Testing/ALPHA7_TESTS.md), [roadmap](Docs/ROADMAP.md) and [changelog](CHANGELOG.md). Original concept document is retained unchanged under `Docs/Design/ORIGINAL_PRD.md`.
+- [Documentation Index](Docs/README.md)
+- [Latest preset and auto-display UX](Docs/Design/ALPHA10_PRESETS_AND_DISCOVERY.md)
+- [Workspace UX](Docs/Design/ALPHA9_NATIVE_WORKSPACE.md)
+- [Current Technical Implementation](Docs/Technical/ALPHA9_VIEWPORT_GEOMETRY.md)
+- [Native Tests and Manual QA](Docs/Testing/ALPHA10_TESTS.md)
+- [Architecture](Docs/Technical/ARCHITECTURE.md)
+- [Original PRD](Docs/Design/ORIGINAL_PRD.md) (preserved)
+- [Changelog](CHANGELOG.md)
 
 No other Unreal plugin is required.
+
+### Alpha 0.3.0-alpha.2 notes
+
+Connection drawing now uses one screen-space pipeline for line, caps and labels. Aid enforces one connection per unordered note pair, shows category/type in the card footer, and uses the Unreal accent-blue selection border. The Aid tab indicates unsaved document packages with `*` and provides a Save action. See `Docs/Testing/ALPHA9_TESTS.md` for visual regression checks. UE 5.8.3 engine compilation and UI behavior have not been verified by the package authoring environment.
+
+## Aid alpha.3 improvements
+
+Associated documents can appear automatically whenever their level opens, even if the Aid tab remains closed. The behavior is configured at **Project Settings → Plugins → Aid** with *Auto-show Aid documents for the open level* (on by default). Individual document eyes stay independent from **Viewport Show → Developer → Aid**, which is a per-viewport master visibility control. A second setting, *Auto-collapse unselected notes*, defaults on and controls the authoring panel only.
+
+Note and connection styling use one preset base color (or a Custom override), derived body/footer surfaces, direct connection cap/line controls and editable connection targets. See `Docs/Design/ALPHA10_PRESETS_AND_DISCOVERY.md` and `Docs/Testing/ALPHA10_TESTS.md`.

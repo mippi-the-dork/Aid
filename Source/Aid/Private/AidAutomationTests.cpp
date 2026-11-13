@@ -151,3 +151,166 @@ bool FAidCategoriesPresetsTest::RunTest(const FString& Parameters)
 }
 
 #endif
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidUnplacedNotesTest,
+    "Aid.Data.Authoring.UnplacedNotesStayOutOfViewport",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidUnplacedNotesTest::RunTest(const FString& Parameters)
+{
+    UAidDocument* Doc = NewObject<UAidDocument>(GetTransientPackage());
+    const FGuid Id = Doc->AddUnplacedNode(FText::FromString(TEXT("Pending puzzle note")));
+    const FAidNode* Note = Doc->FindNode(Id);
+    TestNotNull(TEXT("Unplaced note exists in the document"), Note);
+    if (!Note) return false;
+    TestEqual(TEXT("Unplaced anchor persisted in the data model"), Note->Anchor.Type, EAidAnchorType::Unplaced);
+    TestEqual(TEXT("Unplaced note never renders"), UAidDocument::GetNoteVisibility(*Note, FVector::ZeroVector, FVector::ZeroVector), static_cast<uint8>(0));
+    TestTrue(TEXT("An unplaced note is valid authored content"), Doc->ValidateGraph().IsEmpty());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidUnplacedConnectionsTest,
+    "Aid.Data.Visibility.UnplacedEndpointSuppressesConnection",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidUnplacedConnectionsTest::RunTest(const FString& Parameters)
+{
+    FAidNode A, B;
+    A.ViewDistance = 2000.f;
+    B.ViewDistance = 2000.f;
+    B.Anchor.Type = EAidAnchorType::Unplaced;
+    FAidConnection Edge;
+    const FVector Camera = FVector::ZeroVector;
+    const FVector Near(500., 0., 0.), Far(10000., 0., 0.);
+    TestFalse(TEXT("No false line to world origin for unplaced target"),
+        UAidDocument::IsConnectionVisible(Edge, A, B, Camera, Near, FVector::ZeroVector));
+    B.Anchor.Type = EAidAnchorType::World;
+    TestTrue(TEXT("Once placed, far target can be traced from visible source"),
+        UAidDocument::IsConnectionVisible(Edge, A, B, Camera, Near, Far));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidDocumentOrganizationTest,
+    "Aid.Data.Organization.DocumentCategoryAndLevelAssociation",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidDocumentOrganizationTest::RunTest(const FString& Parameters)
+{
+    UAidDocument* Doc = NewObject<UAidDocument>(GetTransientPackage());
+    TestTrue(TEXT("Default category is ungrouped"), Doc->DocumentCategory.IsNone());
+    Doc->DocumentCategory = TEXT("QA");
+    TestEqual(TEXT("Document category changes without changing notes"), Doc->DocumentCategory, FName(TEXT("QA")));
+    TestTrue(TEXT("Empty document has no level associations"), !Doc->IsAssociatedWithLevel(TEXT("/Game/TestMap")));
+    const UAidProjectSettings* Settings = GetDefault<UAidProjectSettings>();
+    TestTrue(TEXT("Project provides document category suggestions"), Settings->DocumentCategories.Contains(FName(TEXT("QA"))));
+    return true;
+}
+
+#endif
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidUnorderedSingleConnectionTest,
+    "Aid.Data.Graph.OneConnectionPerUnorderedPair",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidUnorderedSingleConnectionTest::RunTest(const FString& Parameters)
+{
+    UAidDocument* Doc = NewObject<UAidDocument>(GetTransientPackage());
+    const FGuid A = Doc->AddNode(FText::FromString(TEXT("Door")), FVector::ZeroVector);
+    const FGuid B = Doc->AddNode(FText::FromString(TEXT("Switch")), FVector(50., 0., 0.));
+    const FGuid C = Doc->AddNode(FText::FromString(TEXT("Power")), FVector(100., 0., 0.));
+    TestTrue(TEXT("A-B initially absent"), !Doc->HasConnectionBetween(A, B));
+    TestTrue(TEXT("First A-B connection succeeds"), Doc->AddConnection(A, B, FText::FromString(TEXT("Requires"))).IsValid());
+    TestTrue(TEXT("A-B recognized in both directions"), Doc->HasConnectionBetween(B, A));
+    TestFalse(TEXT("Second A-B connection blocked"), Doc->AddConnection(A, B, FText::GetEmpty()).IsValid());
+    TestFalse(TEXT("Reverse B-A connection blocked"), Doc->AddConnection(B, A, FText::GetEmpty()).IsValid());
+    TestEqual(TEXT("Rejected additions do not mutate array"), Doc->Connections.Num(), 1);
+    TestTrue(TEXT("A-C is a distinct pair"), Doc->AddConnection(A, C, FText::GetEmpty()).IsValid());
+    TestEqual(TEXT("Only two unique note pairs exist"), Doc->Connections.Num(), 2);
+    TestTrue(TEXT("Valid graph"), Doc->ValidateGraph().IsEmpty());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidImportedDuplicateDetectionTest,
+    "Aid.Data.Graph.DuplicatePairValidation",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidImportedDuplicateDetectionTest::RunTest(const FString& Parameters)
+{
+    UAidDocument* Doc = NewObject<UAidDocument>(GetTransientPackage());
+    const FGuid A = Doc->AddNode(FText::FromString(TEXT("One")), FVector::ZeroVector);
+    const FGuid B = Doc->AddNode(FText::FromString(TEXT("Two")), FVector(100., 0., 0.));
+    TestTrue(TEXT("Existing edge created"), Doc->AddConnection(A, B, FText::GetEmpty()).IsValid());
+    FAidConnection Reversed = Doc->Connections[0];
+    Reversed.Id = FGuid::NewGuid();
+    Reversed.SourceNode = B;
+    Reversed.TargetNode = A;
+    Doc->Connections.Add(Reversed); // Simulates old/externally-authored duplicate asset.
+    TestTrue(TEXT("Validator reports legacy duplicate unordered pair"),
+        Doc->ValidateGraph().ContainsByPredicate([](const FString& Error) { return Error.Contains(TEXT("duplicates")); }));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidRetargetPreservesIdentityTest,
+    "Aid.Data.Graph.ConnectionRetargeting",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidRetargetPreservesIdentityTest::RunTest(const FString& Parameters)
+{
+    UAidDocument* Doc = NewObject<UAidDocument>(GetTransientPackage());
+    const FGuid A = Doc->AddUnplacedNode(FText::FromString(TEXT("A")));
+    const FGuid B = Doc->AddUnplacedNode(FText::FromString(TEXT("B")));
+    const FGuid C = Doc->AddUnplacedNode(FText::FromString(TEXT("C")));
+    const FGuid D = Doc->AddUnplacedNode(FText::FromString(TEXT("D")));
+    const FGuid AB = Doc->AddConnection(A, B, FText::FromString(TEXT("Retarget me")));
+    const FGuid AC = Doc->AddConnection(A, C, FText::FromString(TEXT("Existing")));
+    TestTrue(TEXT("Connections created"), AB.IsValid() && AC.IsValid());
+    TestFalse(TEXT("Retarget fails for duplicate unordered pair"), Doc->RetargetConnection(AB, C));
+    TestFalse(TEXT("Self-connections cannot be created by retargeting"), Doc->RetargetConnection(AB, A));
+    TestFalse(TEXT("Unknown targets rejected"), Doc->RetargetConnection(AB, FGuid::NewGuid()));
+    TestTrue(TEXT("Valid destination accepted"), Doc->RetargetConnection(AB, D));
+    const FAidConnection* Moved = Doc->Connections.FindByPredicate([AB](const FAidConnection& E){ return E.Id == AB; });
+    TestNotNull(TEXT("Original connection ID retained"), Moved);
+    if (Moved)
+    {
+        TestEqual(TEXT("Retargeted endpoint"), Moved->TargetNode, D);
+        TestEqual(TEXT("Label retained"), Moved->Label.ToString(), FString(TEXT("Retarget me")));
+    }
+    TestTrue(TEXT("Resulting graph valid"), Doc->ValidateGraph().IsEmpty());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAidDerivedColorAndCustomLabelTest,
+    "Aid.Data.Presets.SingleBaseColorAndCustomFooter",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAidDerivedColorAndCustomLabelTest::RunTest(const FString& Parameters)
+{
+    const UAidProjectSettings* Settings = GetDefault<UAidProjectSettings>();
+    FAidNode Note;
+    Note.Category = NAME_None;
+    TestEqual(TEXT("Default is permanent option"), Settings->GetNotePresetLabel(Note), FString(TEXT("Default")));
+    Note.Category = TEXT("Design");
+    TestEqual(TEXT("Named preset labels appear"), Settings->GetNotePresetLabel(Note), FString(TEXT("Design")));
+    Note.bCustomAppearance = true;
+    Note.CustomFooterText = FText::FromString(TEXT("Custom intent"));
+    Note.Style.ApplyBaseColor(FLinearColor(.25f,.66f,.45f,1.f));
+    TestEqual(TEXT("Custom mode overrides preset name"), Settings->GetNotePresetLabel(Note), FString(TEXT("Custom")));
+    TestEqual(TEXT("Custom footer is used"), Settings->GetNoteFooterLabel(Note), FString(TEXT("Custom intent")));
+    TestTrue(TEXT("Body derived darker than header"),
+        FAidCardStyle::GetBodyColor(Note.Style.HeaderBackgroundColor).G < Note.Style.HeaderBackgroundColor.G);
+    TestTrue(TEXT("Footer darker than body"),
+        FAidCardStyle::GetFooterColor(Note.Style.HeaderBackgroundColor).G <
+        FAidCardStyle::GetBodyColor(Note.Style.HeaderBackgroundColor).G);
+    FAidConnection Edge;
+    TestEqual(TEXT("Default relationship permanent"), Settings->GetConnectionPresetLabel(Edge), FString(TEXT("Default")));
+    Edge.bCustomAppearance = true;
+    Edge.CustomFooterText = FText::FromString(TEXT("Custom relation"));
+    TestEqual(TEXT("Custom connection footer"), Settings->GetConnectionFooterLabel(Edge), FString(TEXT("Custom relation")));
+    return true;
+}
+
+#endif

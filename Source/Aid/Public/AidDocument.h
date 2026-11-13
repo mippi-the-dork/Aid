@@ -12,7 +12,14 @@ UENUM(BlueprintType)
 enum class EAidAnchorType : uint8
 {
     World UMETA(DisplayName="World Position"),
-    ActorTag UMETA(DisplayName="Actor Tag (with World Fallback)")
+    ActorTag UMETA(DisplayName="Actor Tag (with World Fallback)"),
+    Unplaced UMETA(DisplayName="Not Placed")
+};
+
+UENUM(BlueprintType)
+enum class EAidNoteType : uint8
+{
+    Note, DesignIntent, Question, Warning, Task, QA
 };
 
 UENUM(BlueprintType)
@@ -40,23 +47,28 @@ struct AID_API FAidCardStyle
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Header")
     FLinearColor HeaderBackgroundColor = FLinearColor(0.07f, 0.27f, 0.38f, 1.f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Header")
+    UPROPERTY()
     FLinearColor HeaderTextColor = FLinearColor::White;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Body")
+    UPROPERTY()
     FLinearColor BodyBackgroundColor = FLinearColor(0.03f, 0.07f, 0.10f, 0.94f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Body")
+    UPROPERTY()
     FLinearColor BodyTextColor = FLinearColor::White;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Frame", meta=(ClampMin="0.0", UIMin="0.0"))
+    UPROPERTY()
     float BorderThickness = 1.5f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Typography", meta=(ClampMin="8", ClampMax="96"))
+    UPROPERTY()
     int32 FontSize = 16;
 
     /** Automatically derived from the header color. No redundant border picker. */
     FLinearColor GetBorderColor() const;
+
+    /** Header is the only user-authored color. Other card surfaces are derived. */
+    static FLinearColor GetBodyColor(const FLinearColor& Base);
+    static FLinearColor GetFooterColor(const FLinearColor& Base);
+    void ApplyBaseColor(const FLinearColor& Base);
 };
 
 /** Position is always world-space: the viewer actor is NOT an annotation origin. */
@@ -98,14 +110,26 @@ struct AID_API FAidNode
     FText Body;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
-    FName Category = TEXT("Design");
+    FName Category = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
     TArray<FName> Tags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
-    FLinearColor CategoryColor = FLinearColor(0.25f, 0.8f, 0.95f, 1.f);
+    EAidNoteType Type = EAidNoteType::Note;
 
+    UPROPERTY()
+    FLinearColor CategoryColor = FLinearColor(0.25f, 0.8f, 0.95f, 1.f); // Legacy field, no longer used by viewport rendering.
+
+    /** Color override; choosing a preset resets this to false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
+    bool bCustomAppearance = false;
+
+    /** Only shown in the viewport footer when using a custom color. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
+    FText CustomFooterText;
+
+    /** Authoring data may exist before it has a location in the level. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
     FAidAnchor Anchor;
 
@@ -138,10 +162,16 @@ struct AID_API FAidConnection
     FText Label;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
-    FName RelationshipType = TEXT("References");
+    FName RelationshipType = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
     FLinearColor Color = FLinearColor(0.25f, 0.8f, 0.95f, 1.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
+    bool bCustomAppearance = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Content")
+    FText CustomFooterText;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
     EAidLineStyle LineStyle = EAidLineStyle::Solid;
@@ -150,7 +180,7 @@ struct AID_API FAidConnection
     EAidCapStyle StartCap = EAidCapStyle::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance")
-    EAidCapStyle EndCap = EAidCapStyle::Arrowhead;
+    EAidCapStyle EndCap = EAidCapStyle::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance", meta=(ClampMin="0.1", ClampMax="20.0"))
     float Thickness = 2.f;
@@ -177,6 +207,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aid|About", meta=(MultiLine="true"))
     FText Description;
 
+    /** Optional document grouping in the Aid Documents outliner. NAME_None = ungrouped. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Aid|About")
+    FName DocumentCategory = NAME_None;
+
     /** Optional associated maps. This is metadata, not a requirement to display the document elsewhere. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Aid|Levels")
     TArray<TSoftObjectPtr<UWorld>> AssociatedLevels;
@@ -190,12 +224,22 @@ public:
     UFUNCTION(BlueprintCallable, Category="Aid|Graph")
     FGuid AddNode(const FText& Title, const FVector& WorldPosition);
 
+    /** Creates a note with content but no viewport anchor. */
+    UFUNCTION(BlueprintCallable, Category="Aid|Graph")
+    FGuid AddUnplacedNode(const FText& Title);
+
     /** Returns invalid GUID if either endpoint is missing or both IDs are identical. */
     UFUNCTION(BlueprintCallable, Category="Aid|Graph")
     FGuid AddConnection(const FGuid& SourceId, const FGuid& TargetId, const FText& Label);
 
     UFUNCTION(BlueprintPure, Category="Aid|Graph")
     bool HasNode(const FGuid& Id) const;
+
+    /** Only one connection between an unordered pair; reverse direction is a duplicate. */
+    bool HasConnectionBetween(const FGuid& First, const FGuid& Second) const;
+
+    /** Retarget without deleting authoring/styling and without creating duplicate unordered pairs. */
+    bool RetargetConnection(const FGuid& ConnectionId, const FGuid& NewTarget);
 
     const FAidNode* FindNode(const FGuid& Id) const;
 

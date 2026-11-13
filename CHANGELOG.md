@@ -1,4 +1,60 @@
+# Aid 0.3.0-alpha.4 — UE 5.8 Discovery Ticker Compile Fix
+
+- Fixed **C2679** and **C2664** in `AidEditorSubsystem.cpp` by declaring `DiscoveryTicker` as `FTSTicker::FDelegateHandle`, matching UE 5.8's `FTSTicker::AddTicker()` return value and `RemoveTicker()` parameter.
+- Included `Containers/Ticker.h` in the subsystem header so the nested handle type is complete and explicitly available.
+- No changes to automatic discovery logic, editor workflows, document data, viewport rendering or other plugins.
+- Added a static regression check for the ticker-handle declaration. **Unreal Engine compilation has not been run in this environment.**
+
+---
+
+# Aid 0.3.0-alpha.3 — Compact Presets & Automatic Level Display
+
+- Single base-color note and connection presets with derived backgrounds, borders and footer colors; preset button reads Default, named preset, or Custom.
+- Custom footer label editor appears beside the color swatch; connection labels gain preset footers and always use white text.
+- Connection target picker supports retargeting without deleting the connection and enforces the one-unordered-pair rule in the data model.
+- Direct cycle buttons for start/end caps and line style, inline thickness/distance and note distance; typography/border thickness moved to Project Settings.
+- Connections drawn behind near-to-far-sorted note cards; circles/squares are offset from marker rings.
+- Native per-viewport Show flag registered under Developer → Aid; removes confusing Hide Overlay button.
+- Project setting auto-shows associated documents on map open/switch without opening an asset or Aid tab; preserves manual document-eye decisions. Auto-collapse unselected notes defaults ON.
+- New automation tests and manual QA matrix included. **Unreal Engine compilation is not verified in this environment.**
+
 # Changelog
+
+## 0.3.0-alpha.2 — Viewport correctness and native-workspace refinement
+
+- Changed connection rendering to a single projected screen-space path: colored line segments, line styles, gaps, labels and cap geometry use the same data. Removed the separate PDI world-space line that could detach from its HUD cap at oblique angles, when crossing the near plane, or at extreme thickness. Lines are clipped to the viewport, with explicit near-plane projection.
+- Retained the shared rule that a connection displays if either note is within range, regardless of the other note's distance or direction. With neither note visible, it does not render.
+- Added exclusive per-endpoint cap rendering. Circle and Square replace Arrow (rather than adding another rendered shape).
+- Uses the editor's AccentBlue style color for selected note/connection geometry and outlines instead of yellow or tinting entire Aid rows.
+- The note viewport card has expanded wrapping width and does not silently ellipsize long authored text. Its size grows with wrapped lines, and cards omit placeholder body text if the description is empty.
+- Added viewport card footer showing category, category-color stripe, and semantic Note Type. Category controls preset styling/organization; Note Type communicates intent (Task, QA, Warning, etc.).
+- Added automatic word wrapping for multiline text input in Aid.
+- Square color picker controls, clearer connection target spacing, grouped note-row borders, sticky counts and more compact initial document pane sizing.
+- Explicitly returns default editor cursor outside placement/connection operations and allows the regular transform widget, to reduce interference with normal actor selection.
+- A pair of notes may have only one relationship, regardless of connection direction. Document enforces it, validation detects older duplicates, and editor displays a non-modal notification for attempted duplicates. Added two automation tests.
+- Shows a dirty asterisk on the active Aid Document and in its Outliner row; added Save button for the document asset, using Unreal's package save flow.
+- Explicit Project Settings section identity so settings links select Project > Plugins > Aid rather than only opening the Project Settings window.
+- Changed placement footer toward the Modeling Mode visual pattern (dark bar, blue Accept, neutral Cancel, compact labels). **It is still a Canvas HUD, not Unreal's actual Interactive Tools Framework accept/cancel overlay**; native Slate/ITF replacement remains tracked.
+
+- Scope: Aid only. Source packaging and static validation do not demonstrate a successful UE 5.8 compile or manual viewport behavior.
+
+---
+
+# Changelog
+
+## 0.3.0-alpha.1 (2026-11-10) — Native workspace and staged placement
+
+- Renamed the user-facing menu and tab to **Aid**, retaining the previous internal tab identity.
+- Added a resizable Documents pseudo-Outliner (categories, visibility, associations, search) and a collapsible Notes editor.
+- Created valid **unplaced notes** with note-first World/Actor/Camera placement and a reversible viewport Confirm/Cancel preview.
+- Added preset-only None/Category/Relationship selectors and Project Settings shortcuts.
+- Updated note/connection selection synchronization, square color swatches and note settings/type.
+- Changed card rendering to compute geometry from wrapped text; corrected per-endpoint cap visibility.
+- Added atomic Slate panel-content replacement and data revision refreshes.
+- Added native automation coverage and detailed manual QA instructions.
+- This source has **not been compiled in UE 5.8.3 in this environment**; static checks only.
+
+
 
 ## 0.2.0-alpha.2 (2026-11-10) — Aid viewport body-text compilation fix
 

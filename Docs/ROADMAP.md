@@ -89,3 +89,10 @@ Design goals: Same authored card/connection presentation in PIE and packaged QA 
 ## Release gate
 
 Do not call v1.0 complete until compile, native automation, manual authoring, source-control, performance, World Partition and packaged QA/shipping tests are documented and passing. An alpha handoff is not proof of those conditions.
+
+## Follow-up after Alpha 9
+
+- Replace Canvas placement footer with the engine's real Modeling/Interactive Tools Framework accept/cancel Slate overlay, using engine source to match the exact UE 5.8 implementation.
+- Explore proper native card layout with measured text metrics and user-controlled maximum-height presentation for exceptionally long notes.
+- Profile large Aid Documents and cache text layout by revision for 1,000+ notes/edges.
+- Validate actor-selection, cursor and gizmo coexistence within the custom FEdMode on real UE 5.8 viewports.

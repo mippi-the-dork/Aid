@@ -1,6 +1,7 @@
 #include "Modules/ModuleManager.h"
 #include "AidBrowser.h"
 #include "AidViewportMode.h"
+#include "AidShowFlag.h"
 #include "EditorModeRegistry.h"
 #include "Framework/Docking/TabManager.h"
 #include "ToolMenus.h"
@@ -19,7 +20,7 @@ public:
 
         FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
             TEXT("AidBrowser"), FOnSpawnTab::CreateRaw(this, &FAidEditorModule::SpawnBrowser))
-            .SetDisplayName(LOCTEXT("TabName", "Aid Browser"))
+            .SetDisplayName(LOCTEXT("TabName", "Aid"))
             .SetTooltipText(LOCTEXT("TabTooltip", "Spatial design and QA annotation authoring"))
             .SetMenuType(ETabSpawnerMenuType::Hidden);
 
@@ -57,7 +58,7 @@ private:
         FToolMenuSection& Section = Menu->FindOrAddSection(TEXT("Aid"));
         Section.AddMenuEntry(
             TEXT("AidBrowserOpen"),
-            LOCTEXT("OpenBrowser", "Aid Browser"),
+            LOCTEXT("OpenBrowser", "Aid"),
             LOCTEXT("OpenBrowserTip", "Open the Aid spatial annotation panel"),
             FSlateIcon(),
             FUIAction(FExecuteAction::CreateLambda([]()

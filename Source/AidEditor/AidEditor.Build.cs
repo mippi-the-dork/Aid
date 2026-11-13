@@ -7,7 +7,7 @@ public class AidEditor : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PrivateDependencyModuleNames.AddRange(new string[] {
             "Core", "CoreUObject", "Engine", "InputCore", "AppFramework", "Aid", "UnrealEd", "EditorFramework", "LevelEditor",
-            "Slate", "SlateCore", "PropertyEditor", "AssetRegistry", "AssetDefinition", "EditorSubsystem", "ToolMenus", "Projects"
+            "Slate", "SlateCore", "PropertyEditor", "AssetRegistry", "AssetDefinition", "EditorSubsystem", "ToolMenus", "Projects", "Settings"
         });
     }
 }

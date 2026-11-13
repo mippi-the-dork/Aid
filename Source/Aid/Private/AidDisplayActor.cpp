@@ -1,5 +1,6 @@
 #include "AidDisplayActor.h"
 #include "AidDocument.h"
+#include "AidProjectSettings.h"
 #include "Components/SceneComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -84,7 +85,7 @@ void AAidDisplayActor::RefreshAidDisplay()
         Card->SetHorizontalAlignment(EHTA_Center);
         Card->SetVerticalAlignment(EVRTA_TextCenter);
         Card->SetWorldSize(TextWorldSize);
-        Card->SetTextRenderColor(Node.Style.BodyTextColor.ToFColor(true));
+        Card->SetTextRenderColor(FLinearColor::White.ToFColor(true));
         const FString DisplayText = Node.Body.IsEmpty()
             ? Node.Title.ToString()
             : Node.Title.ToString() + TEXT("\n") + Node.Body.ToString();
@@ -124,7 +125,8 @@ void AAidDisplayActor::Tick(float DeltaSeconds)
             const FString DisplayText = Visibility == 1 ? TEXT("(o)") :
                 (Node.Body.IsEmpty() ? Node.Title.ToString() : Node.Title.ToString() + TEXT("\n") + Node.Body.ToString());
             Card->SetText(FText::FromString(DisplayText));
-            Card->SetTextRenderColor((Visibility == 1 ? Node.Style.HeaderBackgroundColor : Node.Style.BodyTextColor).ToFColor(true));
+            Card->SetTextRenderColor((Visibility == 1
+                ? GetDefault<UAidProjectSettings>()->ResolveNoteColor(Node) : FLinearColor::White).ToFColor(true));
             RuntimeCardStates[Index] = Visibility;
         }
         Card->SetWorldLocation(Position);
@@ -148,7 +150,8 @@ void AAidDisplayActor::Tick(float DeltaSeconds)
                         Locations.FindRef(From->Id), Locations.FindRef(To->Id))) continue;
                 ConnectionBatcher->DrawLine(
                     Locations.FindRef(From->Id), Locations.FindRef(To->Id),
-                    Edge.Color, SDPG_World, Edge.Thickness, 0.f, 0);
+                    GetDefault<UAidProjectSettings>()->ResolveConnectionColor(Edge),
+                    SDPG_World, Edge.Thickness, 0.f, 0);
             }
         }
     }

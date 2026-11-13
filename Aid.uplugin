@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
-  "Version": 2,
-  "VersionName": "0.2.0-alpha.2",
+  "Version": 6,
+  "VersionName": "0.3.0-alpha.4",
   "FriendlyName": "Aid",
   "Description": "Data-driven spatial design annotations for Unreal Editor with optional in-game QA visualization.",
   "Category": "Design Tools",
